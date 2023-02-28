@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-expressions */
+/* eslint-disable @typescript-eslint/no-extra-parens */
 import * as dotenv from 'dotenv'
 import 'isomorphic-fetch'
 import type { ChatMessage, SendMessageOptions } from 'chatgpt'
@@ -13,12 +15,14 @@ const timeoutMs: number = !isNaN(+process.env.TIMEOUT_MS) ? +process.env.TIMEOUT
 
 let apiModel: ApiModel
 
-if (!process.env.OPENAI_API_KEY && !process.env.OPENAI_ACCESS_TOKEN)
-  throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
+// if (!process.env.OPENAI_API_KEY && !process.env.OPENAI_ACCESS_TOKEN)
+// throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
 
 let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
 
 // To use ESM in CommonJS, you can use a dynamic import
+
+// eslint-disable @typescript-eslint/no-extra-parens
 (async () => {
   // More Info: https://github.com/transitive-bullshit/chatgpt-api
 
@@ -56,7 +60,7 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
     })
     apiModel = 'ChatGPTUnofficialProxyAPI'
   }
-})()
+})
 
 async function chatReply(
   message: string,
@@ -80,6 +84,30 @@ async function chatReply(
   }
 }
 
+const bridgeApi = {
+  url: 'http://127.0.0.1:8096/ask',
+  async sendMessage(message: string, options: any) {
+    const response = await fetch(this.url, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...options,
+        msg: message,
+      }),
+    })
+    await new Promise((resolve) => {
+      response.body.on('data', (chunk) => {
+        const buffer = Buffer.from(chunk, 'utf-8')
+        const str = buffer.toString('utf-8')
+        const obj = JSON.parse(str)
+        options.onProgress({
+          text: obj?.data?.message,
+        })
+      })
+      response.body.on('end', resolve)
+    })
+  },
+}
+
 async function chatReplyProcess(
   message: string,
   lastContext?: { conversationId?: string; parentMessageId?: string },
@@ -94,7 +122,7 @@ async function chatReplyProcess(
     if (lastContext)
       options = { ...lastContext }
 
-    const response = await api.sendMessage(message, {
+    const response = await bridgeApi.sendMessage(message, {
       ...options,
       onProgress: (partialResponse) => {
         process?.(partialResponse)
