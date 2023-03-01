@@ -101,6 +101,9 @@ const bridgeApi = {
         const obj = JSON.parse(str)
         options.onProgress({
           text: obj?.data?.message,
+          conversationId: obj?.data?.conversation_id,
+          parentMessageId: obj?.data?.parent_id,
+          role: 'assistant',
         })
       })
       response.body.on('end', resolve)
@@ -120,7 +123,7 @@ async function chatReplyProcess(
     let options: SendMessageOptions = { timeoutMs }
 
     if (lastContext)
-      options = { ...lastContext }
+      options = { parent_id: lastContext.parentMessageId, conversation_id: lastContext.parentMessageId }
 
     const response = await bridgeApi.sendMessage(message, {
       ...options,
